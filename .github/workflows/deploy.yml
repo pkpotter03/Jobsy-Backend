@@ -1,16 +1,16 @@
-name: Deploy to EC2
+name: Deploy Jobsy Backend to EC2
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:      
+  workflow_dispatch:    # allows manual trigger
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Deploy to EC2
@@ -19,11 +19,14 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /home/ubuntu/your-backend
+          script: 
+            cd /home/ubuntu/Jobsy-Backend
+
             git fetch --all
             git reset --hard origin/main
             git clean -fd
+
             npm install --production
+
             pm2 restart backend || pm2 start server.js --name backend
             pm2 save
