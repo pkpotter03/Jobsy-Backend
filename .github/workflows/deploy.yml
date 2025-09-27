@@ -22,7 +22,7 @@ jobs:
           script: 
             cd /home/ubuntu/Jobsy-Backend
 
-            git fetch --all
+            git fetch origin
             git reset --hard origin/main
             git clean -fd
 
