@@ -22,9 +22,7 @@ jobs:
           script: 
             cd /home/ubuntu/Jobsy-Backend
 
-            git fetch origin
-            git reset --hard origin/main
-            git clean -fd
+            git pull origin main
 
             npm install --production
 
