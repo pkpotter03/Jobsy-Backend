@@ -85,13 +85,15 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await User.findOne({ email }).select("-password");
+    const user = await User.findOne({ email });
     if (user && (await bcrypt.compare(password, user.password))) {
 
       const accessToken = generateAccessToken(user._id);
       const refreshToken = generateRefreshToken(user._id);
 
       setTokensInCookies(res, accessToken, refreshToken);
+
+      user.password = undefined;
 
       res.json({ user, accessToken, refreshToken, message: "Login successful" });
     } else {
