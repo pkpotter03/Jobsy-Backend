@@ -1,3 +1,3 @@
 export const testController = (req, res) => {
-    res.json({ message: "Test route is working!" });
+    res.json({ message: "this api working properly !!" });
 }
