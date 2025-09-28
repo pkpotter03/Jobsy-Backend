@@ -38,7 +38,7 @@ export const updateProfile = async (req, res) => {
     delete updateData.role;
 
     const user = await User.findByIdAndUpdate(req.user._id, updateData, { new: true }).select("-password");
-    res.json(user);
+    res.json({ user });
 
   } catch (err) {
     console.error(err);
@@ -50,7 +50,7 @@ export const getUserProfilePrivate = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
+    res.json({ user });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -60,7 +60,7 @@ export const getUserProfilePublic = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password -role");
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
+    res.json({ user });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

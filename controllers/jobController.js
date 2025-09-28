@@ -8,7 +8,7 @@ export const createJob = async (req, res) => {
       return res.status(403).json({ message: "Only recruiters can create jobs" });
     }
     const job = await Job.create({ ...req.body, recruiter: req.user._id });
-    res.status(201).json(job);
+    res.status(201).json({ job });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -20,7 +20,7 @@ export const updateJob = async (req, res) => {
       return res.status(403).json({ message: "Only recruiters can update jobs" });
     }
     const job = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(job);
+    res.json({ job });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -30,7 +30,7 @@ export const getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: "Job not found" });
-    res.json(job);
+    res.json({ job });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -46,7 +46,7 @@ export const getRelevantJobs = async (req, res) => {
       }
     });
 
-    res.json(jobs);
+    res.json({ jobs });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -62,7 +62,7 @@ export const getJobsSearch = async (req, res) => {
 
   try {
     const jobs = await Job.find(query);
-    res.json(jobs);
+    res.json({ jobs });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -89,7 +89,9 @@ export const getApplicants = async (req, res) => {
       return res.status(403).json({ message: "Only recruiters can view applicants" });
     }
     const job = await Job.findById(req.params.id).populate("applicants.user", "name email skills resume");
-    res.json(job.applicants);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    res.json({ jobId: job._id, title: job.title, applicants: job.applicants });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -108,7 +110,7 @@ export const updateApplicantStatus = async (req, res) => {
     if (!applicant) return res.status(404).json({ message: "Applicant not found" });
     applicant.status = req.body.status;
     await job.save();
-    res.json(applicant);
+    res.json({ applicant });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
