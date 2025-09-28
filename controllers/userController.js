@@ -46,7 +46,17 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-export const getUserProfile = async (req, res) => {
+export const getuserProfilePrivate = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getUserProfilePublic = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password -role");
     if (!user) return res.status(404).json({ message: "User not found" });
