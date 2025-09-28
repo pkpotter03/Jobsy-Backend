@@ -83,26 +83,35 @@ export const register = async (req, res) => {
 
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body; // include role from frontend
   try {
     const user = await User.findOne({ email });
-    if (user && (await bcrypt.compare(password, user.password))) {
-
-      const accessToken = generateAccessToken(user._id);
-      const refreshToken = generateRefreshToken(user._id);
-
-      setTokensInCookies(res, accessToken, refreshToken);
-
-      user.password = undefined;
-
-      res.json({ user, accessToken, refreshToken, message: "Login successful" });
-    } else {
-      res.status(401).json({ message: "Invalid credentials" });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(403).json({ message: `This user is not a ${role}` });
+    }
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    setTokensInCookies(res, accessToken, refreshToken);
+
+    user.password = undefined;
+
+    res.json({ user, accessToken, refreshToken, message: "Login successful" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 
 export const refreshToken = (req, res) => {
