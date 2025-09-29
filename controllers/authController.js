@@ -18,18 +18,19 @@ export const setTokensInCookies = (res, accessToken, refreshToken) => {
 
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: isProd,       
-    sameSite: "none", 
-    maxAge: 15 * 60 * 1000, 
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    maxAge: 15 * 60 * 1000,
   });
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: isProd,
-    sameSite: "none",
+    sameSite: isProd ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
+
 
 
 export const register = async (req, res) => {
@@ -124,11 +125,13 @@ export const refreshToken = (req, res) => {
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     const accessToken = generateAccessToken(decoded.id);
 
+    const isProd = process.env.NODE_ENV === "production";
+
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite:"none",
-      maxAge: 15 * 60 * 1000
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 15 * 60 * 1000,
     });
 
     res.json({ message: "Access token refreshed" });
