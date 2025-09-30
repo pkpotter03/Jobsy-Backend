@@ -1,10 +1,12 @@
+// controllers/jobController.js
 import Job from "../models/Job.js";
+import User from "../models/User.js";
 import ExcelJS from "exceljs";
 
-
+// Create Job
 export const createJob = async (req, res) => {
   try {
-    if(req.user.role !== "recruiter") {
+    if (req.user.role !== "recruiter") {
       return res.status(403).json({ message: "Only recruiters can create jobs" });
     }
     const job = await Job.create({ ...req.body, recruiter: req.user._id });
@@ -14,9 +16,10 @@ export const createJob = async (req, res) => {
   }
 };
 
+// Update Job
 export const updateJob = async (req, res) => {
   try {
-    if(req.user.role !== "recruiter") {
+    if (req.user.role !== "recruiter") {
       return res.status(403).json({ message: "Only recruiters can update jobs" });
     }
     const job = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -26,6 +29,22 @@ export const updateJob = async (req, res) => {
   }
 };
 
+// Delete Job
+export const deleteJob = async (req, res) => {
+  try {
+    if (req.user.role !== "recruiter") {
+      return res.status(403).json({ message: "Only recruiters can delete jobs" });
+    }
+    const job = await Job.findByIdAndDelete(req.params.id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+    res.json({ message: "Job deleted successfully" });
+  }
+  catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get Job By ID
 export const getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -36,14 +55,13 @@ export const getJobById = async (req, res) => {
   }
 };
 
+// Relevant Jobs (based on user skills)
 export const getRelevantJobs = async (req, res) => {
   try {
     const userSkills = req.user.skills.map(s => s.trim().toLowerCase());
 
     const jobs = await Job.find({
-      skillsRequired: { 
-        $in: userSkills.map(s => s.trim().toLowerCase())
-      }
+      skillsRequired: { $in: userSkills }
     });
 
     res.json({ jobs });
@@ -52,13 +70,13 @@ export const getRelevantJobs = async (req, res) => {
   }
 };
 
-
+// Search Jobs
 export const getJobsSearch = async (req, res) => {
-  const { title, location, skills } = req.query;
+  const { title, location, experience } = req.query;
   let query = {};
   if (title) query.title = { $regex: title, $options: "i" };
   if (location) query.location = { $regex: location, $options: "i" };
-  if (skills) query.skillsRequired = { $in: skills.split(",") };
+  if (experience) query.experienceRequired = { $regex: experience, $options: "i" };
 
   try {
     const jobs = await Job.find(query);
@@ -68,24 +86,59 @@ export const getJobsSearch = async (req, res) => {
   }
 };
 
-
+// Apply Job (sync Job + User)
 export const applyJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: "Job not found" });
 
-    job.applicants.push({ user: req.user._id });
+    const user = await User.findById(req.user._id);
+
+    // Prevent duplicate apply
+    if (user.appliedJobs.some(app => app.job.toString() === job._id.toString())) {
+      return res.status(400).json({ message: "Already applied to this job" });
+    }
+
+    // Add to job
+    job.applicants.push({ user: req.user._id, status: "applied" });
     await job.save();
+
+    // Add to user
+    user.appliedJobs.push({ job: job._id, status: "applied" });
+    await user.save();
+
     res.json({ message: "Applied successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
+// Get Applied Jobs (from User model)
+export const getAppliedJobs = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate("appliedJobs.job");
+    res.json({ jobs: user.appliedJobs });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
+export const getJobsList = async (req, res) => {
+  try {
+    if (req.user.role !== "recruiter") {
+      return res.status(403).json({ message: "Only recruiters can view job list" });
+    }
+    const jobs = await Job.find({ recruiter: req.user._id });
+    res.json({ jobs });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get Applicants (for recruiter)
 export const getApplicants = async (req, res) => {
   try {
-    if(req.user.role !== "recruiter") {
+    if (req.user.role !== "recruiter") {
       return res.status(403).json({ message: "Only recruiters can view applicants" });
     }
     const job = await Job.findById(req.params.id).populate("applicants.user", "name email skills resume");
@@ -97,35 +150,48 @@ export const getApplicants = async (req, res) => {
   }
 };
 
-
+// Update Applicant Status (sync Job + User)
 export const updateApplicantStatus = async (req, res) => {
   try {
-    if(req.user.role !== "recruiter") {
+    if (req.user.role !== "recruiter") {
       return res.status(403).json({ message: "Only recruiters can update applicant status" });
     }
-    const job = await Job.findById(req.params.jobId);
+
+    const { jobId, applicantUserId } = req.params;
+    const { status } = req.body;
+
+    const job = await Job.findById(jobId);
     if (!job) return res.status(404).json({ message: "Job not found" });
 
-     const applicant = job.applicants.find(app => app.user.toString() === req.params.applicantUserId);
+    // Update inside Job
+    const applicant = job.applicants.find(a => a.user.toString() === applicantUserId);
     if (!applicant) return res.status(404).json({ message: "Applicant not found" });
-    applicant.status = req.body.status;
+    applicant.status = status;
     await job.save();
-    res.json({ applicant });
+
+    // Update inside User
+    const user = await User.findById(applicantUserId);
+    const appliedJob = user.appliedJobs.find(j => j.job.toString() === jobId);
+    if (appliedJob) {
+      appliedJob.status = status;
+      await user.save();
+    }
+
+    res.json({ message: "Status updated", applicant });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-
+// Export shortlisted applicants
 export const exportShortlisted = async (req, res) => {
   try {
-    if(req.user.role !== "recruiter") {
+    if (req.user.role !== "recruiter") {
       return res.status(403).json({ message: "Only recruiters can export shortlisted applicants" });
     }
     const { jobId } = req.params;
 
     const job = await Job.findById(jobId).populate("applicants.user", "name email resume");
-
     if (!job) return res.status(404).json({ message: "Job not found" });
 
     const shortlisted = job.applicants.filter(app => app.status === "shortlisted");
@@ -143,7 +209,7 @@ export const exportShortlisted = async (req, res) => {
       worksheet.addRow({
         name: app.user.name,
         email: app.user.email,
-        resume: { text: app.user.resume, hyperlink: app.user.resume }, 
+        resume: { text: app.user.resume, hyperlink: app.user.resume },
       });
     });
 

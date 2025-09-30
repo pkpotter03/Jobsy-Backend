@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const jobSchema = new mongoose.Schema({
   title: String,
   description: String,
-  experience: String,
+  experienceRequired: String,
   location: String,
   Company: String,
   salary: String,
