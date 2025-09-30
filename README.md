@@ -152,4 +152,8 @@ Automatically pulls latest code from GitHub and restarts the server for continuo
 ---
 ## License
 This project is licensed under the MIT License.
+
+---
+⭐ If you find this project helpful, give it a star!
+
 ---
