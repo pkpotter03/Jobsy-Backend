@@ -10,6 +10,10 @@ export const createJob = async (req, res) => {
       return res.status(403).json({ message: "Only recruiters can create jobs" });
     }
     const job = await Job.create({ ...req.body, recruiter: req.user._id });
+    if(skillsRequired in req.body){
+      job.skillsRequired = req.body.skillsRequired.map(s => s.trim().toLowerCase());
+      await job.save();
+    }
     res.status(201).json({ job });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -23,6 +27,10 @@ export const updateJob = async (req, res) => {
       return res.status(403).json({ message: "Only recruiters can update jobs" });
     }
     const job = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if(skillsRequired in req.body){
+      job.skillsRequired = req.body.skillsRequired.map(s => s.trim().toLowerCase());
+      await job.save();
+    }
     res.json({ job });
   } catch (err) {
     res.status(500).json({ message: err.message });
