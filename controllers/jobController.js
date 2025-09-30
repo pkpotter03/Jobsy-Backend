@@ -9,13 +9,16 @@ export const createJob = async (req, res) => {
     if (req.user.role !== "recruiter") {
       return res.status(403).json({ message: "Only recruiters can create jobs" });
     }
-    const job = await Job.create({ ...req.body, recruiter: req.user._id });
-    if(skillsRequired in req.body){
-      job.skillsRequired = req.body.skillsRequired.map(s => s.trim().toLowerCase());
-      await job.save();
+    const jobData = { ...req.body, recruiter: req.user._id };
+    if ("skillsRequired" in req.body) {
+      jobData.skillsRequired = req.body.skillsRequired.map(s => s.trim().toLowerCase());
     }
+
+    const job = await Job.create(jobData);
+
     res.status(201).json({ job });
   } catch (err) {
+    console.error(err); // For debugging
     res.status(500).json({ message: err.message });
   }
 };
@@ -26,16 +29,24 @@ export const updateJob = async (req, res) => {
     if (req.user.role !== "recruiter") {
       return res.status(403).json({ message: "Only recruiters can update jobs" });
     }
-    const job = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if(skillsRequired in req.body){
-      job.skillsRequired = req.body.skillsRequired.map(s => s.trim().toLowerCase());
-      await job.save();
+    const updateData = { ...req.body };
+    if ("skillsRequired" in req.body) {
+      updateData.skillsRequired = req.body.skillsRequired.map(s => s.trim().toLowerCase());
     }
+
+    const job = await Job.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
     res.json({ job });
   } catch (err) {
+    console.error(err); // For debugging
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // Delete Job
 export const deleteJob = async (req, res) => {
@@ -68,15 +79,27 @@ export const getRelevantJobs = async (req, res) => {
   try {
     const userSkills = req.user.skills.map(s => s.trim().toLowerCase());
 
-    const jobs = await Job.find({
-      skillsRequired: { $in: userSkills }
-    });
+    const jobs = await Job.aggregate([
+      {
+        $addFields: {
+          matchedSkills: {
+            $size: {
+              $setIntersection: ["$skillsRequired", userSkills]
+            }
+          }
+        }
+      },
+      { $match: { matchedSkills: { $gt: 0 } } }, 
+      { $sort: { matchedSkills: -1 } } 
+    ]);
 
     res.json({ jobs });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // Search Jobs
 export const getJobsSearch = async (req, res) => {
