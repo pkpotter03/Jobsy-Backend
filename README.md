@@ -9,7 +9,6 @@
 - [Features](#features)
 - [Installation](#installation)
 - [API Routes](#api-routes)
-- [Environment Variables](#environment-variables)
 - [Deployment](#deployment)
 - [License](#license)
 
